@@ -50,7 +50,6 @@ export default function AccountScreen() {
 
   const [token, setToken] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [profile, setProfile] = useState<CaregiverInfo | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -139,11 +138,6 @@ export default function AccountScreen() {
         setDeletionModalVisible(true);
       }
     })();
-    return () => {
-      if (logoutTimerRef.current) {
-        clearTimeout(logoutTimerRef.current);
-      }
-    };
   }, []);
 
   const loadProfile = async (tok: string) => {
@@ -487,18 +481,6 @@ export default function AccountScreen() {
         },
       },
     ]);
-  };
-
-  const scheduleLogoutAfterDeletion = () => {
-    if (logoutTimerRef.current) {
-      clearTimeout(logoutTimerRef.current);
-    }
-
-    logoutTimerRef.current = setTimeout(async () => {
-      dismissDialog();
-      await clearAuth();
-      navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'index' }] }));
-    }, 2500);
   };
 
   // ─── Delete Account (request-based flow) ──────────────────────────────────
