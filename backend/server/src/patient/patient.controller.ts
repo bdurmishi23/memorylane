@@ -64,8 +64,8 @@ export class PatientController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/quiz-modes')
-  async updateQuizModes(@Param('id') patientId: string, @Body() body: { modes: string[] }, @Req() req: any) {
-    return this.patientService.updateQuizModes(patientId, req.user.userId, body.modes);
+  async updateQuizModes(@Param('id') patientId: string, @Body() body: { modes: string[]; difficulty?: string }, @Req() req: any) {
+    return this.patientService.updateQuizModes(patientId, req.user.userId, body.modes, body.difficulty);
   }
 
   @Patch(':id/biometric-recovery')
