@@ -4,7 +4,6 @@ import { DashboardService } from './dashboard/dashboard.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { JoinPatientDto } from './dto/join-patient.dto';
-import { SetQuizRemindersDto } from './dto/set-quiz-reminders.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ManagementService } from './management/management.service';
 
@@ -101,12 +100,6 @@ export class PatientController {
   @Patch(':id')
   async update(@Param('id') patientId: string, @Body() updatePatientDto: UpdatePatientDto, @Req() req: any) {
     return this.patientService.updatePatient(patientId, req.user.userId, updatePatientDto);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Patch(':id/quiz-reminders')
-  async setQuizReminders(@Param('id') patientId: string, @Body() body: SetQuizRemindersDto, @Req() req: any) {
-    return this.patientService.setQuizReminders(patientId, req.user.userId, body.times ?? []);
   }
 
   @UseGuards(JwtAuthGuard)
