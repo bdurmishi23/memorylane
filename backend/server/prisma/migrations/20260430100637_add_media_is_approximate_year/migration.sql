@@ -1,2 +1,0 @@
-ALTER TABLE "media"
-  ADD COLUMN IF NOT EXISTS "is_approximate_year" BOOLEAN NOT NULL DEFAULT false;
