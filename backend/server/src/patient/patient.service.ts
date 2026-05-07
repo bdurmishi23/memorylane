@@ -293,25 +293,20 @@ export class PatientService {
     return { message: 'Device unpaired successfully' };
   }
 
-  async getQuizModes(patientId: string, caregiverId: string): Promise<{ quizModes: string[]; quizDifficulty: string }> {
+  async getQuizModes(patientId: string, caregiverId: string): Promise<{ quizModes: string[] }> {
     const link = await this.prisma.patientCaregiver.findUnique({
       where: { caregiverId_patientId: { caregiverId, patientId } },
     });
     if (!link) throw new ForbiddenException('Not a caregiver for this patient');
     const patient = await this.prisma.patient.findUnique({
       where: { id: patientId },
-      select: { quizModes: true, quizDifficulty: true },
+      select: { quizModes: true },
     });
     if (!patient) throw new NotFoundException('Patient not found');
-    return { quizModes: patient.quizModes, quizDifficulty: patient.quizDifficulty };
+    return { quizModes: patient.quizModes };
   }
 
-  async updateQuizModes(
-    patientId: string,
-    caregiverId: string,
-    modes: string[],
-    difficulty?: string,
-  ): Promise<{ quizModes: string[]; quizDifficulty: string }> {
+  async updateQuizModes(patientId: string, caregiverId: string, modes: string[]): Promise<{ quizModes: string[] }> {
     const link = await this.prisma.patientCaregiver.findUnique({
       where: { caregiverId_patientId: { caregiverId, patientId } },
     });
@@ -320,15 +315,13 @@ export class PatientService {
     const VALID = ['NAME', 'AGE', 'RELATIONSHIP'];
     const sanitized = [...new Set(modes.filter((m) => VALID.includes(m)))];
     if (sanitized.length === 0) throw new BadRequestException('At least one quiz mode must remain active');
-    const VALID_DIFFICULTIES = ['EASY', 'MEDIUM', 'HARD'];
-    const quizDifficulty = difficulty && VALID_DIFFICULTIES.includes(difficulty) ? difficulty : undefined;
 
     const patient = await this.prisma.patient.update({
       where: { id: patientId },
-      data: { quizModes: sanitized, ...(quizDifficulty ? { quizDifficulty } : {}) },
-      select: { quizModes: true, quizDifficulty: true },
+      data: { quizModes: sanitized },
+      select: { quizModes: true },
     });
-    return { quizModes: patient.quizModes, quizDifficulty: patient.quizDifficulty };
+    return { quizModes: patient.quizModes };
   }
 
   async setBiometricRecovery(patientId: string, enabled: boolean) {

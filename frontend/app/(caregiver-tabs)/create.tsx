@@ -24,7 +24,7 @@ import { AppIcon } from '../../src/components/AppIcon';
 import { CaregiverAvatarButton } from '../../src/components/CaregiverAvatarButton';
 import { M3Dialog, type M3DialogAction } from '../../src/components/M3Dialog';
 import { MemoryLibrarySheetContent } from '../../src/components/MemoryLibraryModal';
-import { getQuizConfiguration, QuizDifficulty, QuizMode, updateQuizModes } from '../../src/services/media';
+import { getQuizModes, QuizMode, updateQuizModes } from '../../src/services/media';
 
 const isIOS = Platform.OS === 'ios';
 
@@ -35,7 +35,7 @@ interface PatientItem {
   isPrimary: boolean;
 }
 
-type Difficulty = QuizDifficulty;
+type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
 
 const MODE_OPTIONS: { key: QuizMode; label: string; icon: string; subtitle: string }[] = [
   { key: 'NAME', label: 'Name', icon: 'person.fill', subtitle: 'Patient guesses each person\'s name' },
@@ -111,9 +111,8 @@ export default function CreateTab() {
 
       if (fallbackId) {
         try {
-          const config = await getQuizConfiguration(fallbackId);
-          setSelectedModes(config.quizModes);
-          setDifficulty(config.quizDifficulty);
+          const modes = await getQuizModes(fallbackId);
+          setSelectedModes(modes);
         } catch {
           setSelectedModes(['NAME', 'AGE', 'RELATIONSHIP']);
         }
@@ -134,9 +133,8 @@ export default function CreateTab() {
       return;
     }
     try {
-      const config = await getQuizConfiguration(patientId);
-      setSelectedModes(config.quizModes);
-      setDifficulty(config.quizDifficulty);
+      const modes = await getQuizModes(patientId);
+      setSelectedModes(modes);
     } catch {
       showDialog('Error', 'Unable to load existing quiz modes.', [{ label: 'OK', onPress: dismissDialog }]);
       setSelectedModes([]);
@@ -216,7 +214,7 @@ export default function CreateTab() {
 
     setSaving(true);
     try {
-      await updateQuizModes(selectedPatientId, selectedModes, difficulty);
+      await updateQuizModes(selectedPatientId, selectedModes);
       showDialog(
         'Quiz Created',
         `Saved for ${selectedPatient?.name ?? 'patient'} with ${difficulty.toLowerCase()} difficulty${premiumEnabled ? ' and Premium adaptive mode enabled.' : '.'}`,
