@@ -22,6 +22,7 @@ import { M3BottomSheet } from '../../src/components/M3BottomSheet';
 import { M3Dialog, type M3DialogAction } from '../../src/components/M3Dialog';
 import { CaregiverAvatarButton } from '../../src/components/CaregiverAvatarButton';
 import { ManageDeletionSheet } from '../../src/components/ManageDeletionSheet';
+import { MemoryLibrarySheetContent } from '../../src/components/MemoryLibraryModal';
 
 const isIOS = Platform.OS === 'ios';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -730,7 +731,7 @@ function PatientDetailContent({
   showDialog: (title: string, body: string, actions: M3DialogAction[]) => void;
   dismissDialog: () => void;
 }) {
-  const [view, setView] = React.useState<'detail' | 'careTeam'>('detail');
+  const [view, setView] = React.useState<'detail' | 'careTeam' | 'memory-library'>('detail');
   const [editModalVisible, setEditModalVisible] = React.useState(false);
   const [editName, setEditName] = React.useState('');
   const [editSurname, setEditSurname] = React.useState('');
@@ -836,7 +837,7 @@ function PatientDetailContent({
     Alert.alert('Patient Photo', undefined, options);
   };
 
-const addReminderTime = () => {
+  const addReminderTime = () => {
     const normalized = reminderInput.trim();
     if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(normalized)) {
       showDialog('Invalid Time', 'Use 24-hour format HH:MM.', [{ label: 'OK', onPress: dismissDialog }]);
@@ -870,6 +871,7 @@ const addReminderTime = () => {
       />
     );
   }
+
   /* ── Care Team view ── */
   if (view === 'careTeam') {
     return (
