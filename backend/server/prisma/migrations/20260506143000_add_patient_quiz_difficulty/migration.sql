@@ -1,2 +1,0 @@
-ALTER TABLE "patients"
-ADD COLUMN "quiz_difficulty" TEXT NOT NULL DEFAULT 'MEDIUM';

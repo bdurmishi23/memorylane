@@ -1,11 +1,7 @@
-import { QuizDifficulty, QuizMediaItem, QuizMode } from './media';
+import { QuizMediaItem, QuizMode } from './media';
 
 const FALLBACK_RELATIONSHIPS = ['Friend', 'Cousin', 'Neighbor', 'Coworker', 'Teacher', 'Classmate'];
-const CHOICE_COUNT_BY_DIFFICULTY: Record<QuizDifficulty, number> = {
-  EASY: 2,
-  MEDIUM: 3,
-  HARD: 4,
-};
+const DECOY_COUNT = 3;
 
 export interface QuizQuestion {
   media: QuizMediaItem;
@@ -59,9 +55,8 @@ function getRawAnswer(media: QuizMediaItem, mode: QuizMode): string | null {
     case 'RELATIONSHIP':
       return media.relationshipType || null;
     case 'AGE': {
-      if (!media.birthYear) return null;
-      const referenceYear = media.eventYear ?? new Date().getFullYear();
-      const age = referenceYear - media.birthYear;
+      if (!media.birthYear || !media.eventYear) return null;
+      const age = media.eventYear - media.birthYear;
       return age > 0 ? String(age) : null;
     }
   }
@@ -72,9 +67,9 @@ function formatAnswer(raw: string, mode: QuizMode): string {
   return raw;
 }
 
-function generateAgeDecoys(correctAge: number, decoyCount: number): string[] {
+function generateAgeDecoys(correctAge: number): string[] {
   const decoys = new Set<string>();
-  for (let attempt = 0; attempt < 50 && decoys.size < decoyCount; attempt++) {
+  for (let attempt = 0; attempt < 50 && decoys.size < DECOY_COUNT; attempt++) {
     const offset = Math.floor(Math.random() * 20) - 10;
     if (offset === 0) continue;
     const age = Math.max(1, correctAge + offset);
@@ -83,11 +78,11 @@ function generateAgeDecoys(correctAge: number, decoyCount: number): string[] {
   // Guaranteed fallbacks if random range was too narrow
   const extras = [correctAge + 13, correctAge - 13, correctAge + 7, correctAge - 7, correctAge + 4, correctAge - 4];
   for (const fa of extras) {
-    if (decoys.size >= decoyCount) break;
+    if (decoys.size >= DECOY_COUNT) break;
     const a = Math.max(1, fa);
     if (String(a) !== String(correctAge) && !decoys.has(String(a))) decoys.add(String(a));
   }
-  return [...decoys].slice(0, decoyCount);
+  return [...decoys].slice(0, DECOY_COUNT);
 }
 
 function buildDecoys(
@@ -95,7 +90,6 @@ function buildDecoys(
   allMedia: QuizMediaItem[],
   mode: QuizMode,
   rawCorrect: string,
-  decoyCount: number,
 ): string[] {
   const others = allMedia.filter(m => m.publicId !== media.publicId);
 
@@ -108,16 +102,16 @@ function buildDecoys(
       if (!key || key === correctKey || !name || name === rawCorrect || decoysByIdentity.has(key)) continue;
       decoysByIdentity.set(key, name);
     }
-    return pickRandom([...decoysByIdentity.values()], decoyCount);
+    return pickRandom([...decoysByIdentity.values()], DECOY_COUNT);
   }
 
   if (mode === 'RELATIONSHIP') {
     const pool = [...new Set(
       others.map(m => m.relationshipType).filter((r): r is string => !!r && r !== rawCorrect),
     )];
-    const picks = pickRandom(pool, decoyCount);
-    if (picks.length < decoyCount) {
-      const needed = decoyCount - picks.length;
+    const picks = pickRandom(pool, DECOY_COUNT);
+    if (picks.length < DECOY_COUNT) {
+      const needed = DECOY_COUNT - picks.length;
       const fallbacks = FALLBACK_RELATIONSHIPS.filter(r => r !== rawCorrect && !picks.includes(r));
       return [...picks, ...pickRandom(fallbacks, needed)];
     }
@@ -125,14 +119,14 @@ function buildDecoys(
   }
 
   // AGE
-  return generateAgeDecoys(parseInt(rawCorrect, 10), decoyCount);
+  return generateAgeDecoys(parseInt(rawCorrect, 10));
 }
 
 function questionText(mode: QuizMode): string {
   switch (mode) {
     case 'NAME': return 'Who is this person?';
     case 'RELATIONSHIP': return 'How do you know this person?';
-    case 'AGE': return 'How old is this person?';
+    case 'AGE': return 'How old was this person\nin this memory?';
   }
 }
 
@@ -141,18 +135,16 @@ function buildQuestion(
   allMedia: QuizMediaItem[],
   mode: QuizMode,
   imageUrl: string,
-  choiceCount: number,
 ): QuizQuestion | null {
   const rawCorrect = getRawAnswer(media, mode);
   if (!rawCorrect) return null;
 
-  const decoyCount = Math.max(1, choiceCount - 1);
-  const rawDecoys = buildDecoys(media, allMedia, mode, rawCorrect, decoyCount);
-  if (rawDecoys.length < decoyCount) return null;
+  const rawDecoys = buildDecoys(media, allMedia, mode, rawCorrect);
+  if (rawDecoys.length < DECOY_COUNT) return null;
 
   const correctAnswer = formatAnswer(rawCorrect, mode);
   const choices = shuffle([...new Set([correctAnswer, ...rawDecoys.map(d => formatAnswer(d, mode))])]);
-  if (choices.length < choiceCount) return null;
+  if (choices.length < DECOY_COUNT + 1) return null;
 
   return {
     media,
@@ -174,10 +166,8 @@ export function buildQuizSet(
   pool: { media: QuizMediaItem; imageUrl: string }[],
   mode: QuizMode,
   count?: number,
-  difficulty: QuizDifficulty = 'MEDIUM',
 ): QuizQuestion[] {
   const allMedia = pool.map(p => p.media);
-  const choiceCount = CHOICE_COUNT_BY_DIFFICULTY[difficulty];
 
   const byIdentity = new Map<string, { media: QuizMediaItem; imageUrl: string }>();
   for (const item of shuffle(pool.filter(p => getRawAnswer(p.media, mode) !== null))) {
@@ -192,7 +182,7 @@ export function buildQuizSet(
 
   const questions: QuizQuestion[] = [];
   for (const { media, imageUrl } of selected) {
-    const q = buildQuestion(media, allMedia, mode, imageUrl, choiceCount);
+    const q = buildQuestion(media, allMedia, mode, imageUrl);
     if (q) questions.push(q);
   }
   return questions;
@@ -202,11 +192,9 @@ export function buildQuizSetFromIds(
   pool: { media: QuizMediaItem; imageUrl: string }[],
   mode: QuizMode,
   publicIds: string[],
-  difficulty: QuizDifficulty = 'MEDIUM',
 ): QuizQuestion[] {
   const allMedia = pool.map(p => p.media);
   const byPublicId = new Map(pool.map(item => [item.media.publicId, item]));
-  const choiceCount = CHOICE_COUNT_BY_DIFFICULTY[difficulty];
 
   const questions: QuizQuestion[] = [];
   const seenIdentities = new Set<string>();
@@ -217,7 +205,7 @@ export function buildQuizSetFromIds(
     if (!identityKey || seenIdentities.has(identityKey)) continue;
     seenIdentities.add(identityKey);
 
-    const q = buildQuestion(item.media, allMedia, mode, item.imageUrl, choiceCount);
+    const q = buildQuestion(item.media, allMedia, mode, item.imageUrl);
     if (q) questions.push(q);
   }
   return questions;
